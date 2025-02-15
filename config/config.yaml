@@ -1,0 +1,9 @@
+db: 
+  login: postgres
+  password: love
+  port: 5432
+  database: store
+  host: db
+max_open_conns: 10
+secret: mysuperpupermegaultraSecret
+srv_port: :8080
