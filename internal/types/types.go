@@ -1,6 +1,6 @@
 package types
 
-// Типы для предметов, тк в бд храним кодом (числом)
+// Типы для предметов, тк в бд храним кодом (числом).
 const (
 	TypeItemTShirt = iota
 	TypeItemCup
@@ -33,14 +33,14 @@ var (
 	}
 )
 
-// Тип ответа информации о пользователе
+// Тип ответа информации о пользователе.
 type InfoResponse struct {
 	Coins       int         `json:"coins"`
 	Inventory   []Item      `json:"inventory"`
 	CoinHistory Transaction `json:"coinHistory"`
 }
 
-// Структура для предметов у юзера
+// Структура для предметов у юзера.
 type Item struct {
 	Type     string `json:"type"`     // тип возвращаем как строку
 	Quantity int    `json:"quantity"` // количество таких предметов у нас в инвентаре
@@ -59,7 +59,7 @@ func StringToCodeItem(title string) int {
 	return code
 }
 
-// Структура для хранения данных о предмете из бд
+// Структура для хранения данных о предмете из бд.
 type ItemInStore struct {
 	Type  int
 	Price int

@@ -1,0 +1,44 @@
+linters:
+  enable:
+    - lll
+    - errcheck
+    - gosimple  
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - typecheck
+    - mnd
+    - misspell
+    - goconst
+    - gofmt
+    - nakedret         
+    - gocyclo         
+    - dogsled           
+    - godot            
+    - copyloopvar    
+    - nolintlint       
+    - unparam           
+    - whitespace       
+    - ireturn       
+    - prealloc        
+    - errname
+    - goprintffuncname
+
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+    disabled-checks:
+      - hugeParam
+  revive:
+    rules:
+      - name: exported
+
+run:
+  timeout: 5m
+  tests: true
+
+  skip-files:
+    - "_test.go"

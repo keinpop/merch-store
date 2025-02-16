@@ -185,7 +185,7 @@ func TestUserHandlers_Info(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -214,7 +214,7 @@ func TestUserHandlers_Info(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -288,7 +288,7 @@ func TestUserHandlers_SendCoin(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -326,7 +326,7 @@ func TestUserHandlers_SendCoin(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -364,7 +364,7 @@ func TestUserHandlers_SendCoin(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -422,7 +422,7 @@ func TestUserHandlers_BuyItem(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -452,7 +452,7 @@ func TestUserHandlers_BuyItem(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -482,7 +482,7 @@ func TestUserHandlers_BuyItem(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -512,7 +512,7 @@ func TestUserHandlers_BuyItem(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -600,7 +600,7 @@ func TestUserHandlers_Auth(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -636,7 +636,7 @@ func TestUserHandlers_Auth(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusUnauthorized, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -672,7 +672,7 @@ func TestUserHandlers_Auth(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}
@@ -714,7 +714,7 @@ func TestUserHandlers_Auth(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
 			}
 
-			var errResponse ErrorServer
+			var errResponse ServerError
 			if err := json.NewDecoder(resp.Body).Decode(&errResponse); err != nil {
 				t.Fatalf("failed to decode error response: %v", err)
 			}

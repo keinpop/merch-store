@@ -16,7 +16,7 @@ const (
 	startAmountOfMoney = 1000
 
 	// Правило хорошего тона заранее аллоцировать слайсы,
-	// 10 - кажется более менее оптимальное число
+	// 10 - кажется более менее оптимальное число.
 	AllocSize = 10
 
 	DefaultQuantityOnFirstPurchase = 1
@@ -92,7 +92,7 @@ func (ur *UserDBRepository) Authorize(login, password string) (User, error) {
 	return u, nil
 }
 
-// Вспомогательная функция, чтобы сделать функцию Authorize более читаемой
+// Вспомогательная функция, чтобы сделать функцию Authorize более читаемой.
 func createNewUser(l, p string, ur *UserDBRepository) (User, error) {
 	// кодируем пароль
 	hp, err := bcrypt.GenerateFromPassword([]byte(p), bcrypt.DefaultCost)
@@ -123,7 +123,7 @@ func createNewUser(l, p string, ur *UserDBRepository) (User, error) {
 	return u, nil
 }
 
-// Функция для получении пользователю информации
+// Функция для получении пользователю информации.
 func (ur *UserDBRepository) Info(userID string) (types.InfoResponse, error) {
 	var info types.InfoResponse
 
@@ -164,7 +164,7 @@ func (ur *UserDBRepository) Info(userID string) (types.InfoResponse, error) {
 	return info, nil
 }
 
-// Функция для получения инвентаря
+// Функция для получения инвентаря.
 func getInventory(userID string, ur *UserDBRepository) ([]types.Item, error) {
 	q := `
 	SELECT type, quantity
@@ -213,7 +213,7 @@ func getInventory(userID string, ur *UserDBRepository) ([]types.Item, error) {
 	return items, nil
 }
 
-// Функция для получения истории транзакций
+// Функция для получения истории транзакций.
 func getCoinHistory(
 	userID string,
 	ur *UserDBRepository,
@@ -242,7 +242,7 @@ func getCoinHistory(
 
 // Вспомогательная функция для декомпозиции getCoinHistory,
 // чтобы в случае дополнительного функционала было
-// проще добавлять и читать код
+// проще добавлять и читать код.
 func getReceivedTransactions(userID string, ur *UserDBRepository) ([]types.ReceivedTrans, error) {
 	q := `
 	SELECT 
@@ -288,7 +288,7 @@ func getReceivedTransactions(userID string, ur *UserDBRepository) ([]types.Recei
 
 // Вспомогательная функция для декомпозиции getCoinHistory,
 // чтобы в случае дополнительного функционала было
-// проще добавлять и читать код
+// проще добавлять и читать код.
 func getSentTransactions(userID string, ur *UserDBRepository) ([]types.SentTrans, error) {
 	q := `
 	SELECT
@@ -345,7 +345,12 @@ func (ur *UserDBRepository) SendCoin(userID, toUserLogin string, amount int) err
 		ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		err = tx.Rollback()
+		if err != nil {
+			ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+		}
+	}()
 
 	// можем ли списать
 	if err = enoughCoinsInWallet(userID, amount, tx, ur.Logger); err != nil {
@@ -376,7 +381,7 @@ func (ur *UserDBRepository) SendCoin(userID, toUserLogin string, amount int) err
 	return nil
 }
 
-// Отправка денег на счет получателя
+// Отправка денег на счет получателя.
 func sendCoinsToWallet(toUserLogin string, amount int, tx *sql.Tx, l *zap.SugaredLogger) error {
 	q := `
 	UPDATE users
@@ -440,7 +445,7 @@ func addNewTransactions(
   - Списываем со счета 							   -> chargeOffFromWallet
   - Добавляем предмет в инвентарь				   -> addItemInInventory
 
-(если такой уже был - увеличиваем количество)
+(если такой уже был - увеличиваем количество).
 */
 func (ur *UserDBRepository) BuyItem(userID, itemTitle string) error {
 	tx, err := ur.DB.BeginTx(context.Background(), nil)
@@ -448,7 +453,12 @@ func (ur *UserDBRepository) BuyItem(userID, itemTitle string) error {
 		ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		err = tx.Rollback()
+		if err != nil {
+			ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+		}
+	}()
 
 	// получили данные о предмете из бд
 	item, err := getItemByTitle(itemTitle, tx, ur.Logger)
@@ -482,7 +492,7 @@ func (ur *UserDBRepository) BuyItem(userID, itemTitle string) error {
 	return nil
 }
 
-// Функция получения данных о предмете
+// Функция получения данных о предмете.
 func getItemByTitle(itemTitle string, tx *sql.Tx, l *zap.SugaredLogger) (types.ItemInStore, error) {
 	itemCode := types.StringToCodeItem(itemTitle)
 	if itemCode == types.TypeItemError {
@@ -565,7 +575,7 @@ func createNewItemInInventory(userID string, codeItem int, tx *sql.Tx) error {
 	return nil
 }
 
-// Проверка на наличие нужного количества средств
+// Проверка на наличие нужного количества средств.
 func enoughCoinsInWallet(userID string, amount int, tx *sql.Tx, l *zap.SugaredLogger) error {
 	// FOR UPDATE позволяет блокировать баланс на время транзакции
 	q := `
@@ -595,7 +605,7 @@ func enoughCoinsInWallet(userID string, amount int, tx *sql.Tx, l *zap.SugaredLo
 	return nil
 }
 
-// Списание со счета средств
+// Списание со счета средств.
 func chargeOffFromWallet(userID string, amount int, tx *sql.Tx, l *zap.SugaredLogger) error {
 	q := `
 	UPDATE users 

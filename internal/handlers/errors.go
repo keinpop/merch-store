@@ -14,16 +14,16 @@ var (
 	ErrInvalidUsername = errors.New("invalid username")
 )
 
-type ErrorServer struct {
+type ServerError struct {
 	Errors string `json:"errors"`
 }
 
-func (e *ErrorServer) Error() string {
+func (e *ServerError) Error() string {
 	return e.Errors
 }
 
-func NewErrorServer(err error) ErrorServer {
-	return ErrorServer{
+func NewErrorServer(err error) ServerError {
+	return ServerError{
 		Errors: err.Error(),
 	}
 }

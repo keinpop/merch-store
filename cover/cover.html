@@ -1,0 +1,1460 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>handlers: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">proj/internal/handlers/errors.go (66.7%)</option>
+				
+				<option value="file1">proj/internal/handlers/handlers.go (54.5%)</option>
+				
+				<option value="file2">proj/internal/handlers/user.go (86.6%)</option>
+				
+				<option value="file3">proj/internal/session/manager.go (76.5%)</option>
+				
+				<option value="file4">proj/internal/session/session.go (100.0%)</option>
+				
+				<option value="file5">proj/internal/session/session_mock.go (0.0%)</option>
+				
+				<option value="file6">proj/internal/user/repo.go (74.8%)</option>
+				
+				<option value="file7">proj/internal/user/user_mock.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "errors"
+        "net/http"
+
+        "go.uber.org/zap"
+)
+
+var (
+        ErrHeaderNotSet    = errors.New("header not set")
+        ErrInvalidToken    = errors.New("invalid token in header")
+        ErrInvalidUsername = errors.New("invalid username")
+)
+
+type ServerError struct {
+        Errors string `json:"errors"`
+}
+
+func (e *ServerError) Error() string <span class="cov0" title="0">{
+        return e.Errors
+}</span>
+
+func NewErrorServer(err error) ServerError <span class="cov8" title="1">{
+        return ServerError{
+                Errors: err.Error(),
+        }
+}</span>
+
+func SendErrorTo(w http.ResponseWriter, err error, statusCode int, logger *zap.SugaredLogger) <span class="cov8" title="1">{
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(statusCode)
+        if errEncode := json.NewEncoder(w).Encode(NewErrorServer(err)); errEncode != nil </span><span class="cov0" title="0">{
+                logger.Error(errEncode)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package handlers
+
+import (
+        "fmt"
+        "net/http"
+        "proj/internal/middleware"
+        "proj/internal/session"
+        "strings"
+
+        "github.com/golang-jwt/jwt"
+        "github.com/gorilla/mux"
+        "go.uber.org/zap"
+)
+
+func GetUserDataByJWT(
+        w http.ResponseWriter,
+        r *http.Request,
+        field string,
+        secret string,
+        logger *zap.SugaredLogger,
+) string <span class="cov8" title="1">{
+        t := r.Header.Get("Authorization")
+        if t == "" </span><span class="cov8" title="1">{
+                logger.Errorf("%v. More: %v", ErrHeaderNotSet)
+                SendErrorTo(w, ErrHeaderNotSet, http.StatusBadRequest, logger)
+                return ""
+        }</span>
+
+        <span class="cov8" title="1">t = strings.TrimPrefix(t, "Bearer ")
+
+        token, err := jwt.Parse(t, func(token *jwt.Token) (interface{}, error) </span><span class="cov8" title="1">{
+                // Проверка метода подписи
+                if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok </span><span class="cov0" title="0">{
+                        logger.Error(session.ErrUnexpectedMethod)
+                        return nil, session.ErrUnexpectedMethod
+                }</span>
+                // Возвращаем секрет для проверки подписи
+                <span class="cov8" title="1">return []byte(secret), nil</span>
+        })
+        <span class="cov8" title="1">if err != nil || !token.Valid </span><span class="cov8" title="1">{
+                fmt.Println(err)
+                logger.Error(ErrInvalidToken, err)
+                SendErrorTo(w, ErrInvalidToken, http.StatusUnauthorized, logger)
+                return ""
+        }</span>
+
+        // Извлекаем claims и получаем username
+        <span class="cov8" title="1">claims, okToken := token.Claims.(jwt.MapClaims)
+        m, okClaims := claims["user"].(map[string]interface{})
+        if !okToken || !okClaims || claims["user"].(map[string]interface{})[field] == nil </span><span class="cov0" title="0">{
+                logger.Error(ErrInvalidToken, err)
+                SendErrorTo(w, ErrInvalidToken, http.StatusUnauthorized, logger)
+                return ""
+        }</span>
+
+        <span class="cov8" title="1">return m[field].(string)</span>
+}
+
+func NewRouters(uh *UserHandlers, sm *session.SessionManager, logger *zap.SugaredLogger) http.Handler <span class="cov0" title="0">{
+        r := mux.NewRouter()
+
+        initHandlers(r, sm, uh)
+
+        return r
+}</span>
+
+func initHandlers(
+        r *mux.Router,
+        sm *session.SessionManager,
+        userHandler *UserHandlers,
+) <span class="cov0" title="0">{
+        authRouter := r.PathPrefix("/api").Subrouter()
+        authRouter.Use(middleware.Auth(sm))
+        authRouter.HandleFunc("/info", userHandler.Info).Methods("GET")
+        authRouter.HandleFunc("/sendCoin", userHandler.SendCoin).Methods("POST")
+        authRouter.HandleFunc("/buy/{item}", userHandler.BuyItem).Methods("GET")
+
+        noAuthRouter := r.PathPrefix("/api").Subrouter()
+        noAuthRouter.HandleFunc("/auth", userHandler.Auth).Methods("POST")
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "errors"
+        "net/http"
+        "proj/internal/session"
+        "proj/internal/user"
+
+        "github.com/gorilla/mux"
+        "go.uber.org/zap"
+)
+
+const (
+        JWTFieldUserID = "id"
+
+        UsernameMaxLen = 32
+        PasswordMaxLen = 72
+)
+
+type UserHandlers struct {
+        UserRepo user.UserRepo
+        Sessions session.SessionManagerRepo
+        Logger   *zap.SugaredLogger
+}
+
+func (h *UserHandlers) Info(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        // Для начала получим данные о пользователе из jwt,
+        // а именно его айди
+        userID := GetUserDataByJWT(
+                w, r, JWTFieldUserID,
+                h.Sessions.GetSecret(), h.Logger,
+        )
+        if userID == "" </span><span class="cov0" title="0">{
+                // не отправим ошибку, тк в функции уже это предусмотрено
+                return
+        }</span>
+
+        <span class="cov8" title="1">info, err := h.UserRepo.Info(userID)
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, user.ErrUserNotFound) </span><span class="cov8" title="1">{
+                        SendErrorTo(w, err, http.StatusBadRequest, h.Logger)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">SendErrorTo(w, err, http.StatusInternalServerError, h.Logger)
+                return</span>
+        }
+
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+
+        if err := json.NewEncoder(w).Encode(info); err != nil </span><span class="cov0" title="0">{
+                SendErrorTo(w, err, http.StatusInternalServerError, h.Logger)
+                return
+        }</span>
+
+        <span class="cov8" title="1">h.Logger.Infof("successfully received information for userID - %s -", userID)</span>
+}
+
+type SendCoinRequest struct {
+        ToUser string `json:"toUser"`
+        Amount int    `json:"amount"`
+}
+
+func (h *UserHandlers) SendCoin(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var req SendCoinRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                SendErrorTo(w, err, http.StatusBadRequest, h.Logger)
+                return
+        }</span>
+
+        <span class="cov8" title="1">userID := GetUserDataByJWT(
+                w, r, JWTFieldUserID,
+                h.Sessions.GetSecret(), h.Logger,
+        )
+
+        err := h.UserRepo.SendCoin(userID, req.ToUser, req.Amount)
+        if err != nil </span><span class="cov8" title="1">{
+                // Если ошибки связаны с отправкой несуществующему пользователю или
+                // недостаточно средств -&gt; 400
+                if errors.Is(err, user.ErrUserNotFound) || errors.Is(err, user.ErrInsufficientFunds) </span><span class="cov8" title="1">{
+                        SendErrorTo(w, err, http.StatusBadRequest, h.Logger)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">SendErrorTo(w, err, http.StatusInternalServerError, h.Logger)
+                return</span>
+        }
+
+        <span class="cov8" title="1">w.WriteHeader(http.StatusOK)
+        h.Logger.Infof(
+                "coins sent successfully from userID - %s - to username - %s -",
+                userID,
+                req.ToUser,
+        )</span>
+}
+
+func (h *UserHandlers) BuyItem(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        vars := mux.Vars(r)
+        itemTitle := vars["item"]
+
+        userID := GetUserDataByJWT(
+                w, r, JWTFieldUserID,
+                h.Sessions.GetSecret(), h.Logger,
+        )
+
+        err := h.UserRepo.BuyItem(userID, itemTitle)
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, user.ErrItemNotFound) ||
+                        errors.Is(err, user.ErrInsufficientFunds) ||
+                        errors.Is(err, user.ErrUserNotFound) </span><span class="cov8" title="1">{
+                        SendErrorTo(w, err, http.StatusBadRequest, h.Logger)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">SendErrorTo(w, err, http.StatusInternalServerError, h.Logger)
+                return</span>
+        }
+
+        <span class="cov8" title="1">w.WriteHeader(http.StatusOK)
+        h.Logger.Infof("item - %s - purchased successfully for userID - %s -", itemTitle, userID)</span>
+}
+
+type AuthRequest struct {
+        Username string `json:"username"`
+        Password string `json:"password"`
+}
+
+type AuthResponse struct {
+        Token string `json:"token"`
+}
+
+/*
+Я подумал, при какой ситуации мы можем получать 401
+Если пароль неверный, то это же 400. Но, в целом, можем и 401.
+А так же сделаем ограничение на длину имени и пароля.
+*/
+func (h *UserHandlers) Auth(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var req AuthRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                SendErrorTo(w, err, http.StatusBadRequest, h.Logger)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if len(req.Username) &gt; UsernameMaxLen || len(req.Password) &gt; PasswordMaxLen </span><span class="cov8" title="1">{
+                err := errors.New("username or password has invalid size")
+                SendErrorTo(w, err, http.StatusBadRequest, h.Logger)
+                return
+        }</span>
+
+        <span class="cov8" title="1">u, err := h.UserRepo.Authorize(req.Username, req.Password)
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, user.ErrBadPassword) </span><span class="cov8" title="1">{
+                        SendErrorTo(w, err, http.StatusUnauthorized, h.Logger)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">SendErrorTo(w, err, http.StatusInternalServerError, h.Logger)
+                return</span>
+        }
+
+        <span class="cov8" title="1">sess, token, err := h.Sessions.Create(w, u.UserID, u.Login)
+        if err != nil </span><span class="cov8" title="1">{
+                SendErrorTo(w, err, http.StatusInternalServerError, h.Logger)
+                return
+        }</span>
+
+        <span class="cov8" title="1">w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusOK)
+
+        if err := json.NewEncoder(w).Encode(AuthResponse{Token: token}); err != nil </span><span class="cov0" title="0">{
+                SendErrorTo(w, err, http.StatusInternalServerError, h.Logger)
+                return
+        }</span>
+
+        <span class="cov8" title="1">h.Logger.Infof("session - %s - successfully created for userID - %s -", sess.ID, sess.UserID)</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package session
+
+import (
+        "context"
+        "database/sql"
+        "errors"
+        "net/http"
+        "strings"
+        "time"
+
+        "github.com/golang-jwt/jwt"
+        "go.uber.org/zap"
+)
+
+var (
+        ErrUnexpectedMethod = errors.New("unexpected signing method")
+        ErrInternalDB       = errors.New("database error")
+        ErrInternalGo       = errors.New("golang lib errors")
+        ErrSingingToken     = errors.New("error signing token")
+
+        sessKey SessionKey = "sessionKey"
+)
+
+type SessionKey string
+
+const (
+        FieldSessionID = "session_id"
+)
+
+type SessionManager struct {
+        DB          *sql.DB
+        Logger      *zap.SugaredLogger
+        tokenSecret string
+}
+
+func NewSessionManager(db *sql.DB, l *zap.SugaredLogger, secret string) *SessionManager <span class="cov8" title="1">{
+        return &amp;SessionManager{
+                DB:          db,
+                Logger:      l,
+                tokenSecret: secret,
+        }
+}</span>
+
+type SessionManagerRepo interface {
+        Check(r *http.Request) (*Session, error)
+        Create(w http.ResponseWriter, userID string, login string) (*Session, string, error)
+
+        GetSecret() string
+}
+
+func (sm *SessionManager) Check(r *http.Request) (*Session, error) <span class="cov8" title="1">{
+        // Получаем значение заголовка Authorization
+        authHeader := r.Header.Get("Authorization")
+        if authHeader == "" </span><span class="cov0" title="0">{
+                sm.Logger.Errorf("%v", ErrNoAuth)
+                return nil, ErrNoAuth
+        }</span>
+
+        <span class="cov8" title="1">const bearerPrefix = "Bearer "
+        if !strings.HasPrefix(authHeader, bearerPrefix) </span><span class="cov0" title="0">{
+                return nil, ErrNoAuth
+        }</span>
+        <span class="cov8" title="1">tokenString := strings.TrimPrefix(authHeader, bearerPrefix)
+        // Распарсиваем токен, используя секретный ключ
+        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) </span><span class="cov8" title="1">{
+                if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok </span><span class="cov0" title="0">{
+                        sm.Logger.Errorf("%v", ErrUnexpectedMethod)
+                        return nil, ErrUnexpectedMethod
+                }</span>
+                <span class="cov8" title="1">return []byte(sm.tokenSecret), nil</span>
+        })
+        <span class="cov8" title="1">if err != nil || !token.Valid </span><span class="cov8" title="1">{
+                sm.Logger.Errorf("%v. More details: %v", ErrNoAuth, err)
+                return nil, ErrNoAuth
+        }</span>
+
+        // Извлекаем claims из токена
+        <span class="cov8" title="1">claims, ok := token.Claims.(jwt.MapClaims)
+        if !ok || claims[FieldSessionID] == nil </span><span class="cov0" title="0">{
+                sm.Logger.Errorf("%v. More details: %v", ErrNoAuth, err)
+                return nil, ErrNoAuth
+        }</span>
+        <span class="cov8" title="1">sessionID, ok := claims[FieldSessionID].(string)
+        if !ok </span><span class="cov0" title="0">{
+                sm.Logger.Errorf("%v. More details: %v", ErrNoAuth, err)
+                return nil, ErrNoAuth
+        }</span>
+
+        // Проверяем наличие сессии в базе данных
+        <span class="cov8" title="1">var sess Session
+        query := `
+        SELECT session_id, user_id, start_time, end_time 
+        FROM sessions 
+        WHERE session_id = $1
+        `
+        err = sm.DB.QueryRow(query, sessionID).Scan(&amp;sess.ID, &amp;sess.UserID, &amp;sess.StartTime, &amp;sess.EndTime)
+        if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                sm.Logger.Errorf("%v. More details: %v", ErrNoAuth, err)
+                return nil, ErrNoAuth
+        }</span> else<span class="cov8" title="1"> if err != nil </span><span class="cov8" title="1">{
+                sm.Logger.Errorf("%v.More details: %v", ErrInternalDB, err)
+                return nil, ErrInternalDB
+        }</span>
+
+        // Проверяем, не истекло ли время действия сессии
+        <span class="cov8" title="1">if time.Now().After(sess.EndTime) </span><span class="cov8" title="1">{
+                sm.Logger.Errorf("%v. More details: %v", ErrNoAuth, err)
+                return nil, ErrNoAuth
+        }</span>
+
+        <span class="cov8" title="1">return &amp;sess, nil</span>
+}
+
+type AuthResponse struct {
+        Token string `json:"token"`
+}
+
+// Немного сложная логика с удалением сессии сделал для того,
+// чтобы сессии не скапливались и не засоряли память, а эффективно
+// "существовали" - звучит жутко...
+func (sm *SessionManager) Create(
+        w http.ResponseWriter,
+        userID string,
+        login string,
+) (*Session, string, error) <span class="cov8" title="1">{
+        sess := &amp;Session{}
+
+        // Проверяем, существует ли уже сессия и она не просрочена
+        query := `
+    SELECT session_id, user_id, start_time, end_time
+    FROM sessions
+    WHERE user_id = $1
+    `
+        err := sm.DB.QueryRow(query, userID).Scan(&amp;sess.ID, &amp;sess.UserID, &amp;sess.StartTime, &amp;sess.EndTime)
+        if err != nil </span><span class="cov8" title="1">{
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                        // Если сессия не найдена, создаем новую
+                        sess = NewSession(userID)
+                }</span> else<span class="cov8" title="1"> {
+                        sm.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                        return nil, "", ErrInternalDB
+                }</span>
+        } else<span class="cov8" title="1"> {
+                // Если сессия найдена, проверяем, не просрочена ли она
+                if sess.EndTime.Before(time.Now()) </span><span class="cov8" title="1">{
+                        // Если сессия просрочена, удаляем её
+                        query = `DELETE FROM sessions WHERE session_id = $1`
+                        _, err := sm.DB.Exec(query, sess.ID)
+                        if err != nil </span><span class="cov0" title="0">{
+                                sm.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                                return nil, "", ErrInternalDB
+                        }</span>
+
+                        // Создаем новую сессию
+                        <span class="cov8" title="1">sess = NewSession(userID)</span>
+                } else<span class="cov8" title="1"> { // Если все ок, просто вернем ее
+                        return sess, generateJWT(sm, sess, login), nil
+                }</span>
+        }
+
+        // Вставляем новую сессию в базу данных
+        <span class="cov8" title="1">query = `
+        INSERT INTO sessions (session_id, user_id, start_time, end_time)
+    VALUES ($1, $2, $3, $4)
+        `
+        _, err = sm.DB.Exec(query, sess.ID, sess.UserID, sess.StartTime, sess.EndTime)
+        if err != nil </span><span class="cov0" title="0">{
+                sm.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return nil, "", ErrInternalDB
+        }</span>
+
+        <span class="cov8" title="1">return sess, generateJWT(sm, sess, login), nil</span>
+}
+
+func generateJWT(sm *SessionManager, sess *Session, login string) string <span class="cov8" title="1">{
+        // Генерация JWT токена
+        t := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+                "user": map[string]interface{}{
+                        "login": login,
+                        "id":    sess.UserID,
+                },
+                "iat":          sess.StartTime.Unix(),
+                "exp":          sess.EndTime.Unix(),
+                FieldSessionID: sess.ID,
+        })
+
+        token, err := t.SignedString([]byte(sm.tokenSecret))
+        if err != nil </span><span class="cov0" title="0">{
+                sm.Logger.Errorf("%v. More details: %v", ErrSingingToken, err)
+                return ""
+        }</span>
+
+        <span class="cov8" title="1">return token</span>
+}
+
+func (sm *SessionManager) GetSecret() string <span class="cov8" title="1">{
+        return sm.tokenSecret
+}</span>
+
+func ContextWithSession(ctx context.Context, s *Session) context.Context <span class="cov0" title="0">{
+        // создаем новый контекст с нашим ключом и сессией
+        return context.WithValue(ctx, sessKey, s)
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package session
+
+import (
+        "errors"
+        "time"
+
+        "github.com/google/uuid"
+)
+
+const (
+        endTimeDur = 14 * 24 * time.Hour
+)
+
+var (
+        ErrNoAuth = errors.New("session not found")
+)
+
+type Session struct {
+        ID        string    `json:"session_id"`
+        UserID    string    `json:"user_id"`
+        StartTime time.Time `json:"start_time"`
+        EndTime   time.Time `json:"end_time"`
+}
+
+func NewSession(userID string) *Session <span class="cov8" title="1">{
+        startTime := time.Now()
+        endTime := startTime.Add(endTimeDur)
+
+        return &amp;Session{
+                ID:        uuid.New().String(),
+                UserID:    userID,
+                StartTime: startTime,
+                EndTime:   endTime,
+        }
+}</span>
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+// Source: manager.go
+
+// Package session is a generated GoMock package.
+package session
+
+import (
+        http "net/http"
+        reflect "reflect"
+
+        gomock "github.com/golang/mock/gomock"
+)
+
+// MockSessionManagerRepo is a mock of SessionManagerRepo interface.
+type MockSessionManagerRepo struct {
+        ctrl     *gomock.Controller
+        recorder *MockSessionManagerRepoMockRecorder
+}
+
+// MockSessionManagerRepoMockRecorder is the mock recorder for MockSessionManagerRepo.
+type MockSessionManagerRepoMockRecorder struct {
+        mock *MockSessionManagerRepo
+}
+
+// NewMockSessionManagerRepo creates a new mock instance.
+func NewMockSessionManagerRepo(ctrl *gomock.Controller) *MockSessionManagerRepo <span class="cov0" title="0">{
+        mock := &amp;MockSessionManagerRepo{ctrl: ctrl}
+        mock.recorder = &amp;MockSessionManagerRepoMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSessionManagerRepo) EXPECT() *MockSessionManagerRepoMockRecorder <span class="cov0" title="0">{
+        return m.recorder
+}</span>
+
+// Check mocks base method.
+func (m *MockSessionManagerRepo) Check(r *http.Request) (*Session, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Check", r)
+        ret0, _ := ret[0].(*Session)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// Check indicates an expected call of Check.
+func (mr *MockSessionManagerRepoMockRecorder) Check(r interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Check", reflect.TypeOf((*MockSessionManagerRepo)(nil).Check), r)
+}</span>
+
+// Create mocks base method.
+func (m *MockSessionManagerRepo) Create(w http.ResponseWriter, userID, login string) (*Session, string, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Create", w, userID, login)
+        ret0, _ := ret[0].(*Session)
+        ret1, _ := ret[1].(string)
+        ret2, _ := ret[2].(error)
+        return ret0, ret1, ret2
+}</span>
+
+// Create indicates an expected call of Create.
+func (mr *MockSessionManagerRepoMockRecorder) Create(w, userID, login interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockSessionManagerRepo)(nil).Create), w, userID, login)
+}</span>
+
+// GetSecret mocks base method.
+func (m *MockSessionManagerRepo) GetSecret() string <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "GetSecret")
+        ret0, _ := ret[0].(string)
+        return ret0
+}</span>
+
+// GetSecret indicates an expected call of GetSecret.
+func (mr *MockSessionManagerRepoMockRecorder) GetSecret() *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSecret", reflect.TypeOf((*MockSessionManagerRepo)(nil).GetSecret))
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package user
+
+import (
+        "context"
+        "database/sql"
+        "errors"
+        "fmt"
+        "proj/internal/types"
+
+        "github.com/google/uuid"
+        "go.uber.org/zap"
+        "golang.org/x/crypto/bcrypt"
+)
+
+const (
+        startAmountOfMoney = 1000
+
+        // Правило хорошего тона заранее аллоцировать слайсы,
+        // 10 - кажется более менее оптимальное число.
+        AllocSize = 10
+
+        DefaultQuantityOnFirstPurchase = 1
+)
+
+var (
+        ErrInternalDB        = errors.New("database internal error")
+        ErrInternalGo        = errors.New("go internal error")
+        ErrBadPassword       = errors.New("invalid password")
+        ErrInsufficientFunds = errors.New("insufficient funds")
+        ErrUserNotFound      = errors.New("user not found")
+        ErrItemNotFound      = errors.New("item not found")
+)
+
+type UserDBRepository struct {
+        DB     *sql.DB
+        Logger *zap.SugaredLogger
+}
+
+func NewUserDBRepository(db *sql.DB, l *zap.SugaredLogger) *UserDBRepository <span class="cov8" title="1">{
+        return &amp;UserDBRepository{
+                DB:     db,
+                Logger: l,
+        }
+}</span>
+
+/*
+Вообще, я бы разделил Auth и Register на два метода
+чтобы было проще работать, если пользователь только регистрируется.
+Но удовлетворяя ТЗ сделаем в одной, но немного посложнее:
+
+        Есть ли такой юзер по логину?
+                * Да =&gt; Сверим пароли:
+                        * Совпало - ОК
+                        * Не совпало - Неверный пароль
+                * Нет:
+                        * Создадим его
+*/
+func (ur *UserDBRepository) Authorize(login, password string) (User, error) <span class="cov8" title="1">{
+        // проверим, что юзер уже существует
+        var u User
+
+        // Проверим, есть ли пользователь с таким именем
+        query := `
+        SELECT user_id, login, hash_password, amount_in_wallet
+        FROM users
+        WHERE login = $1
+        `
+        err := ur.DB.QueryRow(query, login).Scan(
+                &amp;u.UserID, &amp;u.Login, &amp;u.passwordHash, &amp;u.AmountInWallet,
+        )
+        if err != nil </span><span class="cov8" title="1">{
+                //  Если такого нет (с таким же логином), то создадим его
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                        return createNewUser(login, password, ur)
+                }</span>
+
+                <span class="cov8" title="1">ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return User{}, ErrInternalDB</span>
+        }
+
+        // Сверим пароли
+        <span class="cov8" title="1">if err := bcrypt.CompareHashAndPassword([]byte(u.passwordHash), []byte(password)); err != nil </span><span class="cov8" title="1">{
+                // Пароли не совпали
+                ur.Logger.Errorf("%v. More details: user - %s - enter invalid password",
+                        ErrBadPassword, login,
+                )
+                return User{}, ErrBadPassword
+        }</span>
+
+        // Пароли совпали - возвращаем
+        <span class="cov8" title="1">ur.Logger.Infof("user - %s - logged in again", login)
+        return u, nil</span>
+}
+
+// Вспомогательная функция, чтобы сделать функцию Authorize более читаемой.
+func createNewUser(l, p string, ur *UserDBRepository) (User, error) <span class="cov8" title="1">{
+        // кодируем пароль
+        hp, err := bcrypt.GenerateFromPassword([]byte(p), bcrypt.DefaultCost)
+        if err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalGo, err)
+                return User{}, err
+        }</span>
+
+        // создаем нового пользователя
+        <span class="cov8" title="1">q := `
+        INSERT INTO users (user_id, login, hash_password, amount_in_wallet)
+        VALUES ($1, $2, $3, $4)
+        `
+        newID := uuid.New().String()
+        _, err = ur.DB.Exec(q, newID, l, hp, startAmountOfMoney)
+        if err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return User{}, err
+        }</span>
+
+        <span class="cov8" title="1">u := User{
+                UserID:         newID,
+                Login:          l,
+                passwordHash:   string(hp),
+                AmountInWallet: startAmountOfMoney,
+        }
+        ur.Logger.Infof("new user - %s - created", l)
+        return u, nil</span>
+}
+
+// Функция для получении пользователю информации.
+func (ur *UserDBRepository) Info(userID string) (types.InfoResponse, error) <span class="cov8" title="1">{
+        var info types.InfoResponse
+
+        // запрос для coins
+        query := `
+        SELECT amount_in_wallet
+        FROM users
+        WHERE user_id = $1
+        `
+        err := ur.DB.QueryRow(query, userID).Scan(&amp;info.Coins)
+        if err != nil </span><span class="cov8" title="1">{
+                // Если такого пользователя нет, ошибка в запросе
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrUserNotFound, err)
+                        return types.InfoResponse{}, ErrUserNotFound
+                }</span>
+
+                <span class="cov8" title="1">ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return types.InfoResponse{}, ErrInternalDB</span>
+        }
+
+        // Запрос для инвентаря
+        <span class="cov8" title="1">items, err := getInventory(userID, ur)
+        if err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return types.InfoResponse{}, ErrInternalDB
+        }</span>
+        <span class="cov8" title="1">info.Inventory = items
+
+        // Запрос для истории транзакций (moneyHistory)
+        coinHistory, err := getCoinHistory(userID, ur)
+        if err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return types.InfoResponse{}, ErrInternalDB
+        }</span>
+        <span class="cov8" title="1">info.CoinHistory = coinHistory
+
+        return info, nil</span>
+}
+
+// Функция для получения инвентаря.
+func getInventory(userID string, ur *UserDBRepository) ([]types.Item, error) <span class="cov8" title="1">{
+        q := `
+        SELECT type, quantity
+        FROM items
+        WHERE user_id = $1
+        `
+        rows, err := ur.DB.Query(q, userID)
+        if err != nil </span><span class="cov0" title="0">{
+                // Если такого пользователя нет, ошибка в запросе
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov0" title="0">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrUserNotFound, err)
+                        return nil, ErrUserNotFound
+                }</span>
+
+                <span class="cov0" title="0">ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return nil, err</span>
+        }
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                err = rows.Close()
+                if err != nil </span><span class="cov0" title="0">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                }</span>
+        }()
+
+        <span class="cov8" title="1">items := make([]types.Item, 0, AllocSize)
+
+        for rows.Next() </span><span class="cov8" title="1">{
+                var i types.Item
+                var t int // переменная для числового кода типа
+                err = rows.Scan(&amp;t, &amp;i.Quantity)
+                if err != nil </span><span class="cov0" title="0">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                        return nil, err
+                }</span>
+
+                <span class="cov8" title="1">i.Type = types.CodeToStringItem(t)
+
+                items = append(items, i)</span>
+        }
+
+        <span class="cov8" title="1">if err = rows.Err(); err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return items, nil</span>
+}
+
+// Функция для получения истории транзакций.
+func getCoinHistory(
+        userID string,
+        ur *UserDBRepository,
+) (types.Transaction, error) <span class="cov8" title="1">{
+        // собранный результат
+        var trs types.Transaction
+
+        // Получим сначала все операции, где пользователю
+        // отправляли монеты (received)
+        rts, err := getReceivedTransactions(userID, ur)
+        if err != nil </span><span class="cov0" title="0">{
+                return types.Transaction{}, err
+        }</span>
+        <span class="cov8" title="1">trs.Received = rts
+
+        // Получим теперь все операции, где пользователь
+        // отправлял монеты (sent)
+        sts, err := getSentTransactions(userID, ur)
+        if err != nil </span><span class="cov0" title="0">{
+                return types.Transaction{}, err
+        }</span>
+        <span class="cov8" title="1">trs.Sent = sts
+
+        return trs, nil</span>
+}
+
+// Вспомогательная функция для декомпозиции getCoinHistory,
+// чтобы в случае дополнительного функционала было
+// проще добавлять и читать код.
+func getReceivedTransactions(userID string, ur *UserDBRepository) ([]types.ReceivedTrans, error) <span class="cov8" title="1">{
+        q := `
+        SELECT 
+        u_from.login AS from_user,
+        t.amount
+    FROM transactions t
+    JOIN users u_from ON t.sender = u_from.user_id
+    WHERE t.receiver = $1  
+        `
+        rows, err := ur.DB.Query(q, userID)
+        if err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                err = rows.Close()
+                if err != nil </span><span class="cov0" title="0">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                }</span>
+        }()
+
+        <span class="cov8" title="1">res := make([]types.ReceivedTrans, 0, AllocSize)
+
+        for rows.Next() </span><span class="cov8" title="1">{
+                var rt types.ReceivedTrans
+
+                err = rows.Scan(&amp;rt.FromUser, &amp;rt.Amount)
+                if err != nil </span><span class="cov0" title="0">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                        return nil, err
+                }</span>
+
+                <span class="cov8" title="1">res = append(res, rt)</span>
+        }
+
+        <span class="cov8" title="1">if err = rows.Err(); err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return res, nil</span>
+}
+
+// Вспомогательная функция для декомпозиции getCoinHistory,
+// чтобы в случае дополнительного функционала было
+// проще добавлять и читать код.
+func getSentTransactions(userID string, ur *UserDBRepository) ([]types.SentTrans, error) <span class="cov8" title="1">{
+        q := `
+        SELECT
+        u_to.login AS to_user,
+        t.amount
+    FROM transactions t
+    JOIN users u_to ON t.receiver = u_to.user_id
+    WHERE t.sender = $1
+        `
+        rows, err := ur.DB.Query(q, userID)
+        if err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                err = rows.Close()
+                if err != nil </span><span class="cov0" title="0">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                }</span>
+        }()
+        <span class="cov8" title="1">res := make([]types.SentTrans, 0, AllocSize)
+
+        for rows.Next() </span><span class="cov8" title="1">{
+                var st types.SentTrans
+
+                err = rows.Scan(&amp;st.ToUser, &amp;st.Amount)
+                if err != nil </span><span class="cov0" title="0">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                        return nil, err
+                }</span>
+
+                <span class="cov8" title="1">res = append(res, st)</span>
+        }
+
+        <span class="cov8" title="1">if err = rows.Err(); err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return res, nil</span>
+}
+
+/*
+Функция для отправки денег юзеру, разобьем на 4 подфункции:
+  - достаточно ли средств -&gt; enoughCoinsInWallet
+  - списание                           -&gt; chargeOffFromWallet
+  - отправка                           -&gt; sendCoinsToWallet
+  - добавление транзакции -&gt; addNewTransactions
+*/
+func (ur *UserDBRepository) SendCoin(userID, toUserLogin string, amount int) error <span class="cov8" title="1">{
+        // Начинаем транзакцию в бд, чтобы обеспечить атомарность нашего запроса
+        tx, err := ur.DB.BeginTx(context.Background(), nil)
+        if err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return err
+        }</span>
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                err = tx.Rollback()
+                if err != nil </span><span class="cov8" title="1">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                }</span>
+        }()
+
+        // можем ли списать
+        <span class="cov8" title="1">if err = enoughCoinsInWallet(userID, amount, tx, ur.Logger); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        // списание со счета отправителя
+        <span class="cov8" title="1">if err = chargeOffFromWallet(userID, amount, tx, ur.Logger); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // отправка на счет получателя
+        <span class="cov8" title="1">if err = sendCoinsToWallet(toUserLogin, amount, tx, ur.Logger); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // добавление транзакции о проведенной операции
+        <span class="cov8" title="1">if err = addNewTransactions(userID, toUserLogin, amount, tx, ur.Logger); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        // Если все произошло успешно, завершаем транзакцию бд
+        <span class="cov8" title="1">if err := tx.Commit(); err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return ErrInternalDB
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Отправка денег на счет получателя.
+func sendCoinsToWallet(toUserLogin string, amount int, tx *sql.Tx, l *zap.SugaredLogger) error <span class="cov8" title="1">{
+        q := `
+        UPDATE users
+        SET amount_in_wallet = amount_in_wallet + $1
+        WHERE login = $2
+         `
+
+        _, err := tx.Exec(q, amount, toUserLogin)
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Println(err)
+                l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return ErrInternalDB
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func addNewTransactions(
+        senderID, receiverLogin string,
+        amount int,
+        tx *sql.Tx,
+        l *zap.SugaredLogger,
+) error <span class="cov8" title="1">{
+        // получим id для получателя, тк есть у нас только его ник
+        q := `
+        SELECT user_id
+        FROM users
+        WHERE login = $1
+        `
+        var receiverID string
+        err := tx.QueryRow(q, receiverLogin).Scan(&amp;receiverID)
+        if err != nil </span><span class="cov8" title="1">{
+                // Если такого пользователя нет, ошибка в запросе
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                        l.Errorf("%v. More details: %v", ErrUserNotFound, err)
+                        return ErrUserNotFound
+                }</span>
+
+                <span class="cov0" title="0">l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return err</span>
+        }
+
+        // Добавляем транзакцию для отправителя и получателя
+        <span class="cov8" title="1">q = `
+        INSERT INTO transactions (sender, receiver, amount)
+        VALUES ($1, $2, $3)
+        `
+        _, err = tx.Exec(q, senderID, receiverID, amount)
+        if err != nil </span><span class="cov0" title="0">{
+                l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+/*
+Функция для покупки предметов пользователем. Декомпозируем на:
+  - Получим предмет с его ценой                                    -&gt; getItemByTitle
+  - Проверим, можно ли списать такую сумму с счета -&gt; enoughCoinsInWallet
+  - Списываем со счета                                                            -&gt; chargeOffFromWallet
+  - Добавляем предмет в инвентарь                                   -&gt; addItemInInventory
+
+(если такой уже был - увеличиваем количество).
+*/
+func (ur *UserDBRepository) BuyItem(userID, itemTitle string) error <span class="cov8" title="1">{
+        tx, err := ur.DB.BeginTx(context.Background(), nil)
+        if err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return err
+        }</span>
+        <span class="cov8" title="1">defer func() </span><span class="cov8" title="1">{
+                err = tx.Rollback()
+                if err != nil </span><span class="cov8" title="1">{
+                        ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                }</span>
+        }()
+
+        // получили данные о предмете из бд
+        <span class="cov8" title="1">item, err := getItemByTitle(itemTitle, tx, ur.Logger)
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        // можем ли списать данную сумму со счета
+        <span class="cov8" title="1">err = enoughCoinsInWallet(userID, item.Price, tx, ur.Logger)
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        // списываем деньги со счета
+        <span class="cov8" title="1">err = chargeOffFromWallet(userID, item.Price, tx, ur.Logger)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        // добавляем предмет в инвентарь
+        <span class="cov8" title="1">err = addItemInInventory(userID, itemTitle, tx, ur.Logger)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">if err := tx.Commit(); err != nil </span><span class="cov0" title="0">{
+                ur.Logger.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return ErrInternalDB
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Функция получения данных о предмете.
+func getItemByTitle(itemTitle string, tx *sql.Tx, l *zap.SugaredLogger) (types.ItemInStore, error) <span class="cov8" title="1">{
+        itemCode := types.StringToCodeItem(itemTitle)
+        if itemCode == types.TypeItemError </span><span class="cov8" title="1">{
+                l.Errorf("%v", ErrItemNotFound)
+                return types.ItemInStore{}, ErrItemNotFound
+        }</span>
+        <span class="cov8" title="1">var i types.ItemInStore
+        i.Type = itemCode
+
+        q := `
+        SELECT price
+        FROM store
+        WHERE type = $1
+        `
+        err := tx.QueryRow(q, itemCode).Scan(&amp;i.Price)
+        if err != nil </span><span class="cov8" title="1">{
+                l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return types.ItemInStore{}, ErrInternalDB
+        }</span>
+
+        <span class="cov8" title="1">return i, nil</span>
+}
+
+/*
+Функция добавления предмета в инвентарь
+  - Если предмета нет - добавим его с количеством 1
+  - если есть просто инкрементим количество
+*/
+func addItemInInventory(userID, titleItem string, tx *sql.Tx, l *zap.SugaredLogger) error <span class="cov8" title="1">{
+        // проверим, есть ли такой предмет
+        q := `
+        SELECT type 
+        FROM items
+        WHERE user_id = $1 AND type = $2
+        `
+        var exists int
+        typeItemCode := types.StringToCodeItem(titleItem)
+        err := tx.QueryRow(q, userID, typeItemCode).Scan(&amp;exists)
+        if err != nil </span><span class="cov8" title="1">{
+                // Если такого нет, создадим предмет
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                        err = createNewItemInInventory(userID, typeItemCode, tx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                                return err
+                        }</span>
+
+                        <span class="cov8" title="1">l.Info("added new item - %s - for user_id - %s -", titleItem, userID)
+                        return nil</span>
+                }
+
+                <span class="cov0" title="0">l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return err</span>
+        }
+
+        // Если такой предмет есть
+        <span class="cov8" title="1">q = `
+        UPDATE items 
+        SET quantity = quantity + 1
+        WHERE user_id = $1 AND type = $2
+        `
+        _, err = tx.Exec(q, userID, typeItemCode)
+        if err != nil </span><span class="cov0" title="0">{
+                l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func createNewItemInInventory(userID string, codeItem int, tx *sql.Tx) error <span class="cov8" title="1">{
+        q := `
+        INSERT INTO items (user_id, type, quantity)
+        VALUES ($1, $2, $3)
+        `
+        _, err := tx.Exec(q, userID, codeItem, DefaultQuantityOnFirstPurchase)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Проверка на наличие нужного количества средств.
+func enoughCoinsInWallet(userID string, amount int, tx *sql.Tx, l *zap.SugaredLogger) error <span class="cov8" title="1">{
+        // FOR UPDATE позволяет блокировать баланс на время транзакции
+        q := `
+        SELECT amount_in_wallet
+        FROM users
+        WHERE user_id = $1
+        FOR UPDATE
+        `
+        var AmountInWallet int
+        err := tx.QueryRow(q, userID).Scan(&amp;AmountInWallet)
+        if err != nil </span><span class="cov8" title="1">{
+                // Если мы не нашли такого пользователя
+                if errors.Is(err, sql.ErrNoRows) </span><span class="cov8" title="1">{
+                        l.Errorf("%v. More details: %v", ErrUserNotFound, err)
+                        return ErrUserNotFound
+                }</span>
+
+                <span class="cov8" title="1">l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return ErrInternalDB</span>
+        }
+
+        // Если недостаточно средств
+        <span class="cov8" title="1">if AmountInWallet-amount &lt; 0 </span><span class="cov8" title="1">{
+                return ErrInsufficientFunds
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Списание со счета средств.
+func chargeOffFromWallet(userID string, amount int, tx *sql.Tx, l *zap.SugaredLogger) error <span class="cov8" title="1">{
+        q := `
+        UPDATE users 
+        SET amount_in_wallet = amount_in_wallet - $1
+        WHERE user_id = $2
+        `
+
+        _, err := tx.Exec(q, amount, userID)
+        if err != nil </span><span class="cov0" title="0">{
+                l.Errorf("%v. More details: %v", ErrInternalDB, err)
+                return ErrInternalDB
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">// Code generated by MockGen. DO NOT EDIT.
+// Source: user.go
+
+// Package user is a generated GoMock package.
+package user
+
+import (
+        types "proj/internal/types"
+        reflect "reflect"
+
+        gomock "github.com/golang/mock/gomock"
+)
+
+// MockUserRepo is a mock of UserRepo interface.
+type MockUserRepo struct {
+        ctrl     *gomock.Controller
+        recorder *MockUserRepoMockRecorder
+}
+
+// MockUserRepoMockRecorder is the mock recorder for MockUserRepo.
+type MockUserRepoMockRecorder struct {
+        mock *MockUserRepo
+}
+
+// NewMockUserRepo creates a new mock instance.
+func NewMockUserRepo(ctrl *gomock.Controller) *MockUserRepo <span class="cov0" title="0">{
+        mock := &amp;MockUserRepo{ctrl: ctrl}
+        mock.recorder = &amp;MockUserRepoMockRecorder{mock}
+        return mock
+}</span>
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUserRepo) EXPECT() *MockUserRepoMockRecorder <span class="cov0" title="0">{
+        return m.recorder
+}</span>
+
+// Authorize mocks base method.
+func (m *MockUserRepo) Authorize(login, password string) (User, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Authorize", login, password)
+        ret0, _ := ret[0].(User)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// Authorize indicates an expected call of Authorize.
+func (mr *MockUserRepoMockRecorder) Authorize(login, password interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authorize", reflect.TypeOf((*MockUserRepo)(nil).Authorize), login, password)
+}</span>
+
+// BuyItem mocks base method.
+func (m *MockUserRepo) BuyItem(userID, itemTitle string) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "BuyItem", userID, itemTitle)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// BuyItem indicates an expected call of BuyItem.
+func (mr *MockUserRepoMockRecorder) BuyItem(userID, itemTitle interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuyItem", reflect.TypeOf((*MockUserRepo)(nil).BuyItem), userID, itemTitle)
+}</span>
+
+// Info mocks base method.
+func (m *MockUserRepo) Info(userID string) (types.InfoResponse, error) <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "Info", userID)
+        ret0, _ := ret[0].(types.InfoResponse)
+        ret1, _ := ret[1].(error)
+        return ret0, ret1
+}</span>
+
+// Info indicates an expected call of Info.
+func (mr *MockUserRepoMockRecorder) Info(userID interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockUserRepo)(nil).Info), userID)
+}</span>
+
+// SendCoin mocks base method.
+func (m *MockUserRepo) SendCoin(userID, toUserLogin string, amount int) error <span class="cov0" title="0">{
+        m.ctrl.T.Helper()
+        ret := m.ctrl.Call(m, "SendCoin", userID, toUserLogin, amount)
+        ret0, _ := ret[0].(error)
+        return ret0
+}</span>
+
+// SendCoin indicates an expected call of SendCoin.
+func (mr *MockUserRepoMockRecorder) SendCoin(userID, toUserLogin, amount interface{}) *gomock.Call <span class="cov0" title="0">{
+        mr.mock.ctrl.T.Helper()
+        return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendCoin", reflect.TypeOf((*MockUserRepo)(nil).SendCoin), userID, toUserLogin, amount)
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
